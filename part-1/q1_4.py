@@ -18,14 +18,16 @@ def compute_numerical_FWHM(freq_vector, P_f_normalized):
     return f_max - f_min
 
 def main():
-    print(f'C\tTheoretical value\tNumerical value\t|Δ|')
+    print("Chirp | Measured FWHM (GHz) | Theoretical FWHM (GHz)")
+    print("-" * 55)
+    
     for C in C_VALUES:
         theoretical_value = theoretical_FWHM(T0, C)
-        
         A_t = gaussian_field(A0, T0, C, TIME_VECTOR)
         P_f_normalized = compute_spectrum(A_t)
         numerical_value = compute_numerical_FWHM(FREQ_VECTOR, P_f_normalized)
-        print(f'{C}\t{int(theoretical_value)}\t\t{int(numerical_value)}\t{abs(int(theoretical_value)-int(numerical_value))}')
+        
+        print(f"{C:5d} | {numerical_value/1e9:18.2f} | {theoretical_value/1e9:21.2f}")
 
 
 if __name__ == '__main__':
