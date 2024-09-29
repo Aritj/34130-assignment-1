@@ -66,7 +66,7 @@ def main():
     plt.figure(figsize=(10, 6))
     # Plot analytical ratios
     for C in C_VALUES:
-        plt.plot(z_analytical_values, analytical_ratios[C], label=f'C={C}')
+        plt.plot(z_analytical_values, analytical_ratios[C], label=f'Analytical C={C}')
 
     # Scatter points for numerical ratios using actual calculated FWHM values
     plt.scatter(Z_VALUES, numerical_ratios[-10], label='Simulated C=-10', marker='o')
