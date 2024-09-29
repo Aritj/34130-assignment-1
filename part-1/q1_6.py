@@ -66,17 +66,17 @@ def main():
     plt.figure(figsize=(10, 6))
     # Plot analytical ratios
     for C in C_VALUES:
-        plt.plot(z_analytical_values, analytical_ratios[C], label=f'Analytical Chirp C={C}')
+        plt.plot(z_analytical_values, analytical_ratios[C], label=f'C={C}')
 
     # Scatter points for numerical ratios using actual calculated FWHM values
-    plt.scatter(Z_VALUES, numerical_ratios[-10], label='Numerical Chirp C=-10', marker='o')
-    plt.scatter(Z_VALUES, numerical_ratios[0], label='Numerical Chirp C=0', marker='o')
-    plt.scatter(Z_VALUES, numerical_ratios[5], label='Numerical Chirp C=5', marker='o')
+    plt.scatter(Z_VALUES, numerical_ratios[-10], label='Simulated C=-10', marker='o')
+    plt.scatter(Z_VALUES, numerical_ratios[0], label='Simulated C=0', marker='o')
+    plt.scatter(Z_VALUES, numerical_ratios[5], label='Simulated C=5', marker='o')
 
     # Labels and legend
     plt.xlabel('Distance z (km)')
-    plt.ylabel('Ratio TFWHM(z)/TFWHM(0)')
-    plt.title('Analytical and Exact Numerical Ratios vs Distance for Different Chirp Values')
+    plt.ylabel('Ratio $T_{FWHM1}(z)/T_{FWHM}$')
+    plt.title('Ratio of Temporal Width vs Distance for Different Chirp Values')
     plt.legend()
     plt.grid(True)
     plt.show()
