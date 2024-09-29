@@ -1,6 +1,8 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
+from tabulate import tabulate
 from q1_1 import N, calculate_sampling_and_frequency_params
 from q1_2 import C_VALUES, A0, T0, TIME_VECTOR, calculate_gaussian_field
 
@@ -33,8 +35,8 @@ def calculate_FWHM(t, P):
 def main() -> None:
     # Plot the spectra for each chirp value
     plt.figure(figsize=(10, 6))
-    print(f"| {'C':^5} | {'FWHM':^18} |")
-    print("-" * 30)
+
+    results = []
 
     for C in C_VALUES:
         A_t = calculate_gaussian_field(A0, T0, C, TIME_VECTOR)
@@ -44,8 +46,16 @@ def main() -> None:
         # c) Plot normalized power spectrum
         plt.plot(FREQ_VECTOR / 1e9, P_f_normalized, label=f"Chirp C={C}")
 
-        # d) Measure the FWHM width of the spectra
-        print(f"| {C:^5d} | {fwhm/1e9:^18.2f} |")
+        results.append(
+            {
+                "C": C,
+                "Measured FHWM (GHz)": calculate_FWHM(
+                    FREQ_VECTOR / 1e9, P_f_normalized
+                ),
+            }
+        )
+
+    print(tabulate(pd.DataFrame(results), headers="keys", tablefmt="psql"))
 
     xscale = 1000
     plt.xlim(-xscale, xscale)

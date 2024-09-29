@@ -1,6 +1,8 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
+from tabulate import tabulate
 from q1_1 import N, calculate_sampling_and_frequency_params
 from q1_2 import C_VALUES, A0, T0, TIME_VECTOR
 from q1_3 import calculate_FWHM
@@ -39,20 +41,10 @@ def calculate_pulse_evolution(z_values):
 
 
 def main():
-    results = calculate_pulse_evolution(Z_VALUES)
+    pulse_evolution = calculate_pulse_evolution(Z_VALUES)
+    results = []
 
-    # Print table header
-    print(f"| {'C Value':^10} | {'Z Value (km)':^15} | {'T_FWHM (ps)':^15} |")
-
-    # Calculate and display FWHM in a table format
-    for C in C_VALUES:
-        print("-" * 50)
-        for z in Z_VALUES:
-            time_vector, A_zt, P_zt = results[C][z]
-            fwhm = calculate_FWHM(time_vector, P_zt)
-            print(f"| {C:^10} | {z:^15.4f} | {fwhm:^15.2f} |")
-
-    # Modified Plotting: Plot all C values for each z value
+    # Plot all C values for each z value
     fig, axs = plt.subplots(
         1, len(Z_VALUES), figsize=(14, 3)
     )  # Create one row of subplots for each z value
@@ -63,13 +55,22 @@ def main():
 
         # Plot all C values for this z value
         for C in C_VALUES:
-            time_vector, A_zt, P_zt = results[C][z]
+            time_vector, A_zt, P_zt = pulse_evolution[C][z]
             axs[j].plot(time_vector, P_zt, label=f"C={C}")
+            results.append(
+                {
+                    "C": C,
+                    "Z-value (km)": z,
+                    "FWHM (ps)": calculate_FWHM(time_vector, P_zt),
+                }
+            )
 
         axs[j].set_xlabel("Time (ps)")
         axs[j].set_ylabel("Power")
         axs[j].legend()
         axs[j].set_title(f"Power vs Time\nz={z} km")
+
+    print(tabulate(pd.DataFrame(results), headers="keys", tablefmt="psql"))
 
     plt.tight_layout()
     plt.show()
