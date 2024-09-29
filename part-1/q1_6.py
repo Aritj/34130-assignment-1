@@ -1,47 +1,82 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from q1_2 import C_VALUES, T_FWHM
+from q1_1 import calculate_sampling_and_frequency_params
+from q1_2 import A0, TIME_VECTOR, C_VALUES, calculate_gaussian_field
 from q1_3 import calculate_FWHM
-from q1_5 import beta_2, Z_VALUES, calculate_pulse_evolution
+from q1_5 import Z_VALUES
 
-# Define parameters for the calculation
-Z_analytical = np.arange(0, 5.001, 0.001)  # Distance values from 0 to 5 km with step size 0.001 km
-T0 = T_FWHM / (2 * np.sqrt(np.log(2)))  # Convert FWHM to T0 for Gaussian pulse (T0 = TFWHM / (2 * sqrt(ln(2)))
+# Define constants and parameters
+beta_2 = -21.68  # Group Velocity Dispersion (ps^2/km)
+T0 = 10 / (2 * np.sqrt(np.log(2)))  # Convert FWHM to T0 for Gaussian pulse (T0 = TFWHM / (2 * sqrt(ln(2)))
+z_analytical_values = np.arange(0, 5.001, 0.001)  # Distance values from 0 to 5 km in steps of 0.001 km
 
+# Define the parameters for pulse propagation
+T_sa, _, _, _ = calculate_sampling_and_frequency_params()
+T_sa *= 1e12
+
+# Define pulse envelope for different chirp values
+def gaussian_pulse(t, A0, T0, C):
+    return A0 * np.exp(-(1 + 1j * C) * (t**2) / (T0**2))
+
+# Define the analytical ratio function as specified
 def analytical_ratio(C, z):
     return np.sqrt(1 + (beta_2 * C * z / T0**2)**2 + (beta_2 * z / T0**2)**2)
 
+# Function to propagate in the frequency domain
+def propagate_pulse(A0, time_vector, z, beta2):
+    # Perform FFT
+    freq_vector = np.fft.fftfreq(len(time_vector), T_sa)  # Frequency vector
+    A_freq = np.fft.fft(A0)  # Frequency domain representation of input pulse
+
+    # Apply phase shift due to dispersion
+    H = np.exp(1j * (beta2 * (2 * np.pi * freq_vector)**2 / 2) * z)
+    A_freq_out = A_freq * H
+
+    # Perform inverse FFT
+    A_out = np.fft.ifft(A_freq_out)
+    return A_out
+
 def main():
-    # Analytical Ratio Calculation
-    analytical_ratios = {C: analytical_ratio(C, Z_analytical) for C in C_VALUES}
+    # Calculate the analytical ratio for each C and z
+    analytical_ratios = {C: analytical_ratio(C, z_analytical_values) for C in C_VALUES}
 
-    # Get the actual FWHM values from the previous question's results
-    results = calculate_pulse_evolution(Z_VALUES) # skip z = 0 km
-    theoretical_ratios = {C: [] for C in C_VALUES}
+    # Initial pulses for C values
+    initial_pulses = {C: calculate_gaussian_field(A0, T0, C, TIME_VECTOR) for C in C_VALUES}
 
-    # Calculate the ratios for the actual FWHM values
+    # Store FWHM values for each chirp and distance
+    FWHM_values = {C: [] for C in C_VALUES}
+
+    # Calculate FWHM for each distance and chirp value
+    for C, pulse in initial_pulses.items():
+        for z in Z_VALUES:
+            if z == 0:
+                power = np.abs(pulse)**2
+            else:
+                propagated_pulse = propagate_pulse(pulse, TIME_VECTOR, z, beta_2)
+                power = np.abs(propagated_pulse)**2
+
+            FWHM = calculate_FWHM(TIME_VECTOR, power)
+            FWHM_values[C].append(FWHM)
+
+    # Calculate numerical ratios: TFWHM(z) / TFWHM(0)
+    numerical_ratios = {C: np.array(FWHM_values[C]) / FWHM_values[C][0] for C in C_VALUES}
+
+    # Regenerate the scatter plot with the exact numerical values
+    plt.figure(figsize=(10, 6))
+    # Plot analytical ratios
     for C in C_VALUES:
-        initial_FWHM_z0 = calculate_FWHM(results[C][0][0], results[C][0][2])  # Calculate FWHM at z=0 km
-        for z in results[C]:
-            time_vector, _, P_zt = results[C][z]
-            FWHM_z = calculate_FWHM(time_vector, P_zt)
-            ratio = FWHM_z / initial_FWHM_z0
-            theoretical_ratios[C].append((z, ratio))
+        plt.plot(z_analytical_values, analytical_ratios[C], label=f'Analytical Chirp C={C}')
 
-    # Plotting
-    plt.figure(figsize=(12, 8))
-    for C in C_VALUES:
-        # Plot analytical ratios
-        plt.plot(Z_analytical, analytical_ratios[C], label=f'C={C}')
+    # Scatter points for numerical ratios using actual calculated FWHM values
+    plt.scatter(Z_VALUES, numerical_ratios[-10], label='Numerical Chirp C=-10', marker='o')
+    plt.scatter(Z_VALUES, numerical_ratios[0], label='Numerical Chirp C=0', marker='o')
+    plt.scatter(Z_VALUES, numerical_ratios[5], label='Numerical Chirp C=5', marker='o')
 
-        # Plot theoretical ratios as scatter points
-        z_actual, ratios_actual = zip(*sorted(theoretical_ratios[C]))  # Extract z and ratios
-        plt.scatter(z_actual, ratios_actual, label=f'Theoretical (C={C})', marker='x')
-
-    plt.xlabel('Propagation Distance z (km)')
-    plt.ylabel(r'$T_{FWHM1}(z) / T_{FWHM}(0)$')
-    plt.title('Temporal Width Ratio vs Propagation Distance')
+    # Labels and legend
+    plt.xlabel('Distance z (km)')
+    plt.ylabel('Ratio TFWHM(z)/TFWHM(0)')
+    plt.title('Analytical and Exact Numerical Ratios vs Distance for Different Chirp Values')
     plt.legend()
     plt.grid(True)
     plt.show()
