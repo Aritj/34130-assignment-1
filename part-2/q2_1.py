@@ -3,8 +3,8 @@ import pandas as pd
 from tabulate import tabulate
 
 # Given constants
-gamma = 1.25  # Nonlinear coefficient in W^-1 km^-1
 P0 = 1.0  # Peak power in W
+gamma = 1.25  # Nonlinear coefficient in W^-1 km^-1
 alpha = 0.0461  # Attenuation coefficient in km^-1
 phi_NL_values = [
     0.5 * np.pi,
@@ -14,12 +14,12 @@ phi_NL_values = [
 ]  # Given nonlinear phase shifts
 
 
-# Function to calculate effective length (Leff)
+# Function to calculate effective length (L_eff)
 def effective_length(z, alpha):
     return (1 - np.exp(-alpha * z)) / alpha
 
 
-# Function to calculate transmission distance for given phi_NL
+# a) Function to calculate transmission distance for given phi_NL
 def transmission_distance(phi_NL, gamma, P0, alpha):
     # Using the relation phi_NL = gamma * P0 * Leff
     # Leff = phi_NL / (gamma * P0)
@@ -29,9 +29,9 @@ def transmission_distance(phi_NL, gamma, P0, alpha):
     return z, Leff_required
 
 
-def main():
-    # Calculate transmission distances and effective lengths
+def get_transmission_distances():
     results = []
+
     for phi in phi_NL_values:
         z, Leff = transmission_distance(phi, gamma, P0, alpha)
         results.append(
@@ -42,8 +42,12 @@ def main():
             }
         )
 
-    # Convert results to a dataframe for easy visualization
-    df_results = pd.DataFrame(results)
+    return pd.DataFrame(results)
+
+
+def main():
+    # Calculate transmission distances and effective lengths
+    df_results = get_transmission_distances()
 
     print(tabulate(df_results, headers="keys", tablefmt="psql"))
 
