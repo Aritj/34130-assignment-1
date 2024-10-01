@@ -22,7 +22,7 @@ def gaussian_pulse(t, A0, T0, C):
 
 # Define the analytical ratio function as specified
 def analytical_ratio(C, z):
-    return np.sqrt(1 + (beta_2 * C * z / T0**2) ** 2 + (beta_2 * z / T0**2) ** 2)
+    return np.sqrt((1 + beta_2 * C * z / T0**2) ** 2 + (beta_2 * z / T0**2) ** 2)
 
 
 # Function to propagate in the frequency domain
