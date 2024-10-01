@@ -1,113 +1,116 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Define constants and parameters
-TFWHM = 10e-12  # Full Width Half Maximum (FWHM) in seconds
-A0 = 1.0  # Pulse peak amplitude (W^0.5)
-gamma = 1.25  # Non-linear coefficient in W^-1 km^-1
-alpha = 0.0461  # Attenuation coefficient in km^-1
-beta2 = 0  # Dispersion parameter (set to 0 for this exercise)
+# Define constants
+TW = 2500e-12  # Total time window (2500 ps)
+N = 2**14      # Number of samples
+N_seg = 5000   # Number of segments
 
-# Simulation settings
-N = 2**14  # Number of samples
-TW = 2500e-12  # Total time window in seconds
-dz = 0.001  # Segment length in km
-z_values = [1.2945, 4.1408, 7.4172, 11.2775]  # Propagation distances in km
+# Time and frequency vectors
+t = np.linspace(-TW/2, TW/2, N)
+fsa = 1 / (t[1] - t[0])  # Sampling frequency
+f = np.linspace(-fsa/2, fsa/2, N)
+w = 2 * np.pi * f  # Angular frequency
 
-# Calculate parameters
-Tsa = TW / N  # Sampling period in time
-time_vector = np.linspace(-TW / 2, TW / 2 - Tsa, N)  # Time vector in seconds
-freq_vector = np.fft.fftshift(np.fft.fftfreq(N, Tsa))  # Frequency vector
+# Fiber and pulse parameters
+T_FWHM = 10e-12  # 10 ps
+A0 = 1  # W^(1/2)
+T0 = T_FWHM / (2 * np.sqrt(np.log(2)))
+alpha = 0.0461  # km^-1
+gamma = 1.25  # W^-1 km^-1
+beta2 = 0  # ps^2/km
+beta3 = 0  # ps^3/km
+z_values = [1.2945, 4.1408, 7.4172, 11.2775]  # km
 
-# Calculate T0 from TFWHM
-T0 = TFWHM / (2 * np.sqrt(2 * np.log(2)))  # T0 is the pulse duration parameter
+# Function to create input pulse
+def create_pulse(t, A0, T0):
+    return A0 * np.exp(-(t**2) / (2 * T0**2))
 
+# Split-step Fourier method for pulse propagation
+def split_step(A_in, z, w, beta2, beta3, alpha, gamma, N_seg):
+    dz = z / N_seg
+    A = A_in
+    for _ in range(N_seg):
+        # Dispersive step (frequency domain)
+        A_w = np.fft.fftshift(np.fft.fft(A))
+        A_w *= np.exp((1j * (beta2/2 * w**2) + 1j * (beta3/6 * w**3) - alpha/2) * dz)
+        A = np.fft.ifft(np.fft.ifftshift(A_w))
 
-# Define Gaussian pulse
-def gaussian_pulse(A0, T0, time_vector):
-    return A0 * np.exp(-(time_vector**2) / (2 * T0**2))
-
-
-# Split-Step Method without Dispersion
-def split_step_nonlinear(A_initial, dz, gamma, alpha, Nseg):
-    A = A_initial.copy()
-    for _ in range(Nseg):
-        # Step 1: Apply non-linearity in the time domain
-        A = A * np.exp(1j * gamma * np.abs(A) ** 2 * dz)
-
-        # Step 2: Apply attenuation
-        A = A * np.exp(-alpha * dz / 2)
-
+        # Non-linear step (time domain)
+        A *= np.exp(1j * gamma * np.abs(A)**2 * dz)
     return A
 
+def analytical_nonlinear(t, A0, T0, z, alpha, gamma):
+    L_eff = (1 - np.exp(-alpha*z)) / alpha
+    P0 = np.abs(A0)**2
+    return np.abs(A0) * np.exp(-alpha*z/2) * np.exp(1j * gamma * P0 * L_eff)
 
-def main():
-    # Initialize the initial pulse
-    A_initial = gaussian_pulse(A0, T0, time_vector)
+# Function to plot all z-values in time and frequency domains
+def plot_all_z(t, f, A_in, z_values, w, beta2, beta3, alpha, gamma, N_seg):
+    plt.figure(figsize=(12, 8))
 
-    # Calculate the initial peak power for normalization
-    initial_peak_power = np.max(np.abs(A_initial) ** 2)
-    # Initial spectrum for frequency normalization
-    A_freq_initial = np.fft.fftshift(np.fft.fft(A_initial))
-    initial_peak_spectrum = np.max(np.abs(A_freq_initial) ** 2)
+    # Time domain subplot
+    plt.subplot(2, 1, 1)
+    plt.plot(t * 1e12, np.abs(A_in)**2 / np.max(np.abs(A_in)**2), 'k--', label='Input')
+    for z in z_values:
+        A_out = split_step(A_in, z, w, beta2, beta3, alpha, gamma, N_seg)
+        plt.plot(t * 1e12, np.abs(A_out)**2 / np.max(np.abs(A_in)**2), label=f'z = {z:.4f} km')
+    plt.xlabel('Time (ps)')
+    plt.ylabel('Normalized Power')
+    plt.title('Time Domain for Different Propagation Distances')
+    plt.legend()
+    plt.grid(True)
+    plt.xlim([-50, 50])
 
-    # Set up the figure with 2 subplots: one for time and one for frequency
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
-    fig.suptitle("Pulse Propagation with Non-Linearity and Attenuation")
+    # Frequency domain subplot
+    A_in_w = np.fft.fftshift(np.fft.fft(A_in))
+    plt.subplot(2, 1, 2)
+    plt.plot(f * 1e-12, np.abs(A_in_w)**2 / np.max(np.abs(A_in_w)**2), 'k--', label='Input')
+    for z in z_values:
+        A_out = split_step(A_in, z, w, beta2, beta3, alpha, gamma, N_seg)
+        A_out_w = np.fft.fftshift(np.fft.fft(A_out))
+        plt.plot(f * 1e-12, np.abs(A_out_w)**2 / np.max(np.abs(A_in_w)**2), label=f'z = {z:.4f} km')
+    plt.xlabel('Frequency (THz)')
+    plt.ylabel('Normalized Power Spectrum')
+    plt.title('Frequency Domain for Different Propagation Distances')
+    plt.legend()
+    plt.grid(True)
+    plt.xlim([-.5, .5])
 
-    # Color and line styles for distinct visualization
-    # colors = ["blue", "orange", "green", "red"]
-    line_styles = ["-", "--", "-.", ":"]
-
-    # Propagate and plot for each specified distance
-    for idx, z in enumerate(z_values):
-        Nseg = int(z / dz)  # Number of segments for the given distance
-        A_out = split_step_nonlinear(A_initial, dz, gamma, alpha, Nseg)
-
-        # Normalize in time domain by the initial peak power
-        power_time = np.abs(A_out) ** 2 / initial_peak_power
-
-        # Time Domain Plot
-        ax1.plot(
-            time_vector * 1e12,
-            power_time,
-            label=f"z = {z:.4f} km",
-            # color=colors[idx],
-            # linestyle=line_styles[idx],
-        )
-        ax1.set_xlabel("Time (ps)")
-        ax1.set_ylabel("Normalized Power")
-        ax1.set_title("Time Domain Pulse Evolution")
-        # ax1.grid()
-        ax1.set_xlim(-10, 10)
-        ax1.set_ylim(0, 1)
-        ax1.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
-
-        # Normalize in frequency domain by the initial peak spectral density
-        A_freq_out = np.fft.fftshift(np.fft.fft(A_out))
-        power_spectrum = np.abs(A_freq_out) ** 2 / initial_peak_spectrum
-
-        # Frequency Domain Plot
-        ax2.plot(
-            freq_vector * 1e-9,
-            power_spectrum,
-            label=f"z = {z:.4f} km",
-            # color=colors[idx],
-            # linestyle=line_styles[idx],
-        )
-        ax2.set_xlabel("Frequency (GHz)")
-        ax2.set_ylabel("Normalized Power Spectral Density")
-        ax2.set_title("Frequency Domain Pulse Evolution")
-        ax2.set_xlim(-500, 500)
-        ax2.set_ylim(0, 1)
-        ax2.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
-
-    # Add legends and adjust layout
-    ax1.legend()
-    ax2.legend()
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.tight_layout()
     plt.show()
 
+def sanity_check(A_in):
+    zcheck = z_values[-1]  # Use the longest propagation distance
+    A_out_numerical = split_step(A_in, zcheck, w, beta2, beta3, alpha, gamma, N_seg)
+    A_out_analytical = A_out_analytical = analytical_nonlinear(t, A_in, T0, zcheck, alpha, gamma)
+    
+    # Normalize the outputs to their own peak values
+    A_out_numerical_normalized = np.abs(A_out_numerical)**2 / np.max(np.abs(A_out_numerical)**2)
+    A_out_analytical_normalized = np.abs(A_out_analytical)**2 / np.max(np.abs(A_out_analytical)**2)
+    
+    # Plotting the sanity check
+    plt.figure(figsize=(8, 5))
+    plt.plot(t * 1e12, A_out_numerical_normalized, 'b-', label='Simulated')
+    plt.plot(t * 1e12, A_out_analytical_normalized, 'r--', label='Analytical')
+    plt.xlabel('Time (ps)', fontsize=12)
+    plt.ylabel('Normalized Power', fontsize=12)
+    #plt.title('Sanity Check: Simulated vs. Analytical Output Pulse', fontsize=14, weight='bold')
+    plt.legend()
+    plt.xlim(-50,50)
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
 
-if __name__ == "__main__":
+# Main function to run the simulation
+def main():
+    # Create input pulse
+    A_in = create_pulse(t, A0, T0)
+
+    # Plot all z-values in both time and frequency domains
+    plot_all_z(t, f, A_in, z_values, w, beta2, beta3, alpha, gamma, N_seg)
+    sanity_check(A_in)
+
+# Execute the main function if this script is run directly
+if __name__ == '__main__':
     main()
