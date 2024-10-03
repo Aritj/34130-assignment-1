@@ -3,77 +3,78 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from tabulate import tabulate
-from q1_1 import N, calculate_sampling_and_frequency_params
-from q1_2 import C_VALUES, A0, T0, TIME_VECTOR
-from q1_3 import calculate_FWHM
+from q1_1 import N, TW, calculate_sampling_and_frequency_params
+from q1_2 import C_VALUES, A0, T0, t, calculate_electrical_field_envelope, calculate_power_of_pulse
+from q1_3 import measure_FWHM
+
+# Get T_sa from Q1-1
+T_sa, _, _, _ = calculate_sampling_and_frequency_params(N, TW)
 
 # Fiber parameters
 beta_2 = -21.68  # Dispersion parameter (ps^2/km)
 Z_VALUES = [0, 0.3199, 1.6636, 3.3272]  # Propagation distances in km
+f = np.fft.fftfreq(N, T_sa * 1e12)  # Frequency vector in Hz
+omega_vector = 2 * np.pi * f  # Angular frequency vector
 
 
-# Define Gaussian pulse with chirp
-def initial_pulse(t, A0, T0, C):
-    return A0 * np.exp(-((1 + 1j * C) * (t / T0) ** 2))
+def calculate_spectrum(A_f: np.ndarray, f: np.ndarray, z: float) -> np.ndarray:
+    omega_vector = 2 * np.pi * f
+    first_term = 1j * (beta_2 / 2) * z * omega_vector**2
+    second_term = 0 # assuming beta_3 = 0
+    return A_f * np.exp(first_term + second_term)
 
-
-def calculate_pulse_evolution(z_values):
+def calculate_pulse_evolution(z_values: list[float]):
     # Compute the evolution for each chirp value and distance
     results = {}  # Store results for analysis
-    T_sa, _, _, _ = calculate_sampling_and_frequency_params()
-    frequency_vector = np.fft.fftfreq(N, T_sa * 1e12)  # Frequency vector in Hz
-    omega_vector = 2 * np.pi * frequency_vector  # Angular frequency
-
+    
     for C in C_VALUES:
         results[C] = {}
-        A_0t = initial_pulse(TIME_VECTOR, A0, T0, C)  # Initial pulse at z=0
-        A_0f = np.fft.fft(A_0t)  # Frequency domain representation
-
+        A_t = calculate_electrical_field_envelope(A0, T0, C, t)
+        A_f = np.fft.fft(A_t)
+        
         # Calculate for each distance
         for z in z_values:
-            phase_shift = np.exp(1j * (beta_2 / 2) * omega_vector**2 * z)
-            A_zf = A_0f * phase_shift  # Apply phase shift
+            A_zf = calculate_spectrum(A_f, f, z)
             A_zt = np.fft.ifft(A_zf)  # Convert back to time domain
-            P_zt = np.abs(A_zt) ** 2  # b) Calculate power
-            results[C][z] = (TIME_VECTOR, A_zt, P_zt)  # Store results
+            P_zt = calculate_power_of_pulse(A_zt)  # b) Calculate power
+            results[C][z] = (t, A_zt, P_zt)  # Store results
 
     return results
 
 
 def main():
     pulse_evolution = calculate_pulse_evolution(Z_VALUES)
-    results = []
 
-    # Plot all C values for each z value
-    fig, axs = plt.subplots(
-        1, len(Z_VALUES), figsize=(14, 3)
-    )  # Create one row of subplots for each z value
+    # Calculate FWHM for each C and Z-value combination
+    table_data = []
+    for C in C_VALUES:
+        row = {"C": C}
+        for i, z in enumerate(Z_VALUES):
+            time_vector, A_zt, P_zt = pulse_evolution[C][z]
+            row[f"T_FWHM{f'(z_{i})'*bool(z)} (ps)\nz{f'_{i}'*bool(z)} = {z} km"] = measure_FWHM(time_vector, P_zt)
+        table_data.append(row)
+    
+    # Print the results in a tabular form
+    print(tabulate(pd.DataFrame(table_data), headers="keys", tablefmt="psql", showindex=False))
+
+    # Plotting the results, one row of subplots for each z value
+    fig, axs = plt.subplots(1, len(Z_VALUES), figsize=(14, 3))
     for j, z in enumerate(Z_VALUES):
-        xscale = 500
-        axs[j].set_xlim(-xscale, xscale)
-        axs[j].set_ylim(0, 0.15)
+        axs[j].set_xlim(-200, 200)
 
         # Plot all C values for this z value
         for C in C_VALUES:
             time_vector, A_zt, P_zt = pulse_evolution[C][z]
             axs[j].plot(time_vector, P_zt, label=f"C={C}")
-            results.append(
-                {
-                    "C": C,
-                    "Z-value (km)": z,
-                    "FWHM (ps)": calculate_FWHM(time_vector, P_zt),
-                }
-            )
 
         axs[j].set_xlabel("Time (ps)")
         axs[j].set_ylabel("Power")
         axs[j].legend()
         axs[j].set_title(f"Power vs Time\nz={z} km")
 
-    print(tabulate(pd.DataFrame(results), headers="keys", tablefmt="psql"))
-
     plt.tight_layout()
     plt.show()
+
 
 
 if __name__ == "__main__":
