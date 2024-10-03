@@ -1,121 +1,107 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Define constants and parameters
-TFWHM = 10e-12  # Full Width Half Maximum (FWHM) in seconds
-A0 = 1.0  # Pulse peak amplitude (W^0.5)
-gamma = 1.25  # Non-linear coefficient in W^-1 km^-1
-alpha = 0.0461  # Attenuation coefficient in km^-1
-beta2 = -21.68e-24  # Dispersion parameter in s^2/m
+# Total time window (2500 ps)
+TW = 2500e-12
+# Number of samples
+N = 2**14
+N_seg = 5000
 
-# Simulation settings
-N = 2**14  # Number of samples
-TW = 2500e-12  # Total time window in seconds
-dz = 0.001  # Segment length in km
-z_values = [1.5532, 5.2621, 8.9709, 12.6798]  # Propagation distances in km
+# Specified time and frequency vectors
+t = np.linspace(-TW / 2, TW / 2, N)
+fsa = 1 / (t[1] - t[0])  # Sampling frequency
+f = np.linspace(-fsa / 2, fsa / 2, N)
+w = 2 * np.pi * f  # Angular frequency
 
-# Calculate parameters
-Tsa = TW / N  # Sampling period in time
-time_vector = np.linspace(-TW / 2, TW / 2 - Tsa, N)  # Time vector in seconds
-freq_vector = np.fft.fftshift(np.fft.fftfreq(N, Tsa))  # Frequency vector in Hz
+# Fiber and pulse parameters
+T_FWHM = 10e-12  # 10 ps
+T0 = T_FWHM / (2 * np.sqrt(np.log(2)))
 
-# Calculate T0 from TFWHM
-T0 = TFWHM / (2 * np.sqrt(2 * np.log(2)))  # T0 is the pulse duration parameter
+A0 = 1  # W^(1/2)
+alpha = 0  # km^-1
+gamma = 1.25  # W^-1 km^-1
+beta2 = -21.68e-24  # s^2/km
+beta3 = 0  # s^3/km
+L = 20  # km
 
-
-# Define Gaussian pulse
-def gaussian_pulse(A0, T0, time_vector):
-    return A0 * np.exp(-(time_vector**2) / (2 * T0**2))
-
-
-# Dispersion operator in the frequency domain
-def dispersion_operator(beta2, dz, freq_vector):
-    omega = 2 * np.pi * freq_vector  # Angular frequency vector
-    return np.exp(-1j * beta2 * omega**2 * dz / 2)
+# Calculate pulse width for the soliton
+P0 = abs(A0) ** 2
+T0_sech_pulse = np.sqrt(abs(beta2) / (gamma * P0))
+print(f"T0 for the sech pulse is {T0_sech_pulse:.2e}")
 
 
-# Split-Step Method with Dispersion and Non-Linearity
-def split_step_fourier(A_initial, dz, beta2, gamma, alpha, Nseg, freq_vector):
-    A = A_initial.copy()
-    dispersion_op = dispersion_operator(
-        beta2, dz * 1e3, freq_vector
-    )  # Convert dz to meters for calculation
+# Create sech pulse
+def create_sech_pulse(t, A0, T0):
+    return A0 / np.cosh(t / T0)
 
-    for _ in range(Nseg):
-        # Step 1: Apply non-linearity in the time domain
+
+# Split-step Fourier Method function
+def split_step(A_in, z, w, beta2, beta3, alpha, gamma, N_seg):
+    dz = z / N_seg
+    A = A_in
+    for _ in range(N_seg):
+        # Dispersive step (frequency domain)
+        A_w = np.fft.fftshift(np.fft.fft(A))
+        A_w = A_w * np.exp(
+            (1j * (beta2 / 2 * w**2) + 1j * (beta3 / 6 * w**3) - alpha / 2) * dz
+        )
+        A = np.fft.ifft(np.fft.ifftshift(A_w))
+
+        # Non-linear step (time domain)
         A = A * np.exp(1j * gamma * np.abs(A) ** 2 * dz)
-
-        # Step 2: Apply dispersion in the frequency domain
-        A_freq = np.fft.fft(A)
-        A_freq = A_freq * dispersion_op
-        A = np.fft.ifft(A_freq)
-
-        # Step 3: Apply attenuation
-        A = A * np.exp(-alpha * dz / 2)
-
     return A
 
 
-# Initialize the initial pulse
-A_initial = gaussian_pulse(A0, T0, time_vector)
-
-# Calculate initial peak power and peak spectral density for normalization
-initial_peak_power = np.max(np.abs(A_initial) ** 2)
-A_freq_initial = np.fft.fftshift(np.fft.fft(A_initial))
-initial_peak_spectral_density = np.max(np.abs(A_freq_initial) ** 2)
-
-# Set up the figure with 2 subplots: one for time and one for frequency
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
-fig.suptitle(
-    "Pulse Propagation with Dispersion and Non-Linearity (Normalized Relative to Initial Peak Power)"
-)
-
-# Color and line styles for distinct visualization
-colors = ["blue", "orange", "green", "red"]
-line_styles = ["-", "--", "-.", ":"]
-
-# Propagate and plot for each specified distance
-for idx, z in enumerate(z_values):
-    Nseg = int(z / dz)  # Number of segments for the given distance
-    A_out = split_step_fourier(A_initial, dz, beta2, gamma, alpha, Nseg, freq_vector)
-
-    # Normalize in time domain by the initial peak power (1 W)
-    power_time = np.abs(A_out) ** 2 / initial_peak_power
-
-    # Time Domain Plot
-    ax1.plot(
-        time_vector * 1e12,
-        power_time,
-        label=f"z = {z:.4f} km",
-        # color=colors[idx],
-        linestyle=line_styles[idx],
+# Function to plot results
+def plot_results(t, f, A_in, A_out, title_str):
+    plt.figure(figsize=(10, 6))
+    # Time domain
+    plt.subplot(2, 1, 1)
+    plt.plot(
+        t * 1e12, np.abs(A_in) ** 2 / np.max(np.abs(A_in) ** 2), "b-", label="Input"
     )
-    ax1.set_xlabel("Time (ps)")
-    ax1.set_ylabel("Normalized Power (Initial Peak = 1)")
-    ax1.set_title("Time Domain Pulse Evolution")
-    ax1.set_xlim(-100, 100)
-    ax1.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
-
-    # Normalize in frequency domain by the initial peak spectral density
-    A_freq_out = np.fft.fftshift(np.fft.fft(A_out))
-    power_spectrum = np.abs(A_freq_out) ** 2 / initial_peak_spectral_density
-
-    # Frequency Domain Plot
-    ax2.plot(
-        freq_vector * 1e-9,
-        power_spectrum,
-        label=f"z = {z:.4f} km",
-        # color=colors[idx],
-        linestyle=line_styles[idx],
+    plt.plot(
+        t * 1e12, np.abs(A_out) ** 2 / np.max(np.abs(A_in) ** 2), "r-", label="Output"
     )
-    ax2.set_xlabel("Frequency (GHz)")
-    ax2.set_ylabel("Normalized Power Spectral Density (Initial Peak = 1)")
-    ax2.set_title("Frequency Domain Pulse Evolution")
-    ax2.set_xlim(-100, 100)
-    ax2.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
+    plt.xlabel("Time (ps)")
+    plt.xlim([-200, 200])
+    plt.ylabel("Normalized Power")
+    plt.title(f"{title_str} (Time Domain)")
+    plt.legend()
 
-# Add legends and adjust layout
-ax1.legend()
-ax2.legend()
-plt.tight_layout(rect=[0, 0, 1, 0.96])
-plt.show()
+    # Frequency domain
+    plt.subplot(2, 1, 2)
+    A_in_w = np.fft.fftshift(np.fft.fft(A_in))
+    A_out_w = np.fft.fftshift(np.fft.fft(A_out))
+    plt.plot(
+        f * 1e-12,
+        np.abs(A_in_w) ** 2 / np.max(np.abs(A_in_w) ** 2),
+        "b-",
+        label="Input",
+    )
+    plt.plot(
+        f * 1e-12,
+        np.abs(A_out_w) ** 2 / np.max(np.abs(A_in_w) ** 2),
+        "r-",
+        label="Output",
+    )
+    plt.xlabel("Frequency (THz)")
+    plt.xlim([-1, 1])
+    plt.ylabel("Normalized Power Spectrum")
+    plt.title(f"{title_str} (Frequency Domain)")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+# Create the initial sech pulse
+A_in = create_sech_pulse(t, A0, T0_sech_pulse)
+
+# Propagation without loss
+A_out = split_step(A_in, L, w, beta2, beta3, alpha, gamma, N_seg)
+plot_results(t, f, A_in, A_out, "Sech Pulse Propagation")
+
+# Introduce loss
+alpha = 0.0461  # km^-1
+A_out_loss = split_step(A_in, L, w, beta2, beta3, alpha, gamma, N_seg)
+plot_results(t, f, A_in, A_out_loss, "Sech Pulse Propagation with alpha = 0.0461")
