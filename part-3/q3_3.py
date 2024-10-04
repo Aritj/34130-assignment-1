@@ -26,7 +26,7 @@ L = 20  # km
 
 # Calculate pulse width for the soliton
 P0 = abs(A0) ** 2
-T0_sech_pulse = np.sqrt(abs(beta2) / (gamma * P0))
+T0_sech_pulse = np.sqrt(abs(beta2) / (gamma * P0))  # hyperbolic secant pulse
 print(f"T0 for the sech pulse is {T0_sech_pulse:.2e}")
 
 
@@ -42,9 +42,9 @@ def split_step(A_in, z, w, beta2, beta3, alpha, gamma, N_seg):
     for _ in range(N_seg):
         # Dispersive step (frequency domain)
         A_w = np.fft.fftshift(np.fft.fft(A))
-        A_w = A_w * np.exp(
-            (1j * (beta2 / 2 * w**2) + 1j * (beta3 / 6 * w**3) - alpha / 2) * dz
-        )
+        first_term = 1j * (beta2 / 2 * w**2)
+        second_term = 0  # assuming beta_3 = 0
+        A_w *= np.exp((first_term + second_term - alpha / 2) * dz)
         A = np.fft.ifft(np.fft.ifftshift(A_w))
 
         # Non-linear step (time domain)
@@ -64,32 +64,34 @@ def plot_results(t, f, A_in, A_out, title_str):
         t * 1e12, np.abs(A_out) ** 2 / np.max(np.abs(A_in) ** 2), "r-", label="Output"
     )
     plt.xlabel("Time (ps)")
-    plt.xlim([-200, 200])
+    plt.xlim(-40, 40)
     plt.ylabel("Normalized Power")
     plt.title(f"{title_str} (Time Domain)")
     plt.legend()
+    plt.grid(True)
 
     # Frequency domain
     plt.subplot(2, 1, 2)
     A_in_w = np.fft.fftshift(np.fft.fft(A_in))
     A_out_w = np.fft.fftshift(np.fft.fft(A_out))
     plt.plot(
-        f * 1e-12,
+        f * 1e-9,
         np.abs(A_in_w) ** 2 / np.max(np.abs(A_in_w) ** 2),
         "b-",
         label="Input",
     )
     plt.plot(
-        f * 1e-12,
+        f * 1e-9,
         np.abs(A_out_w) ** 2 / np.max(np.abs(A_in_w) ** 2),
         "r-",
         label="Output",
     )
-    plt.xlabel("Frequency (THz)")
-    plt.xlim([-1, 1])
+    plt.xlabel("Frequency (GHz)")
+    plt.xlim([-100, 100])
     plt.ylabel("Normalized Power Spectrum")
     plt.title(f"{title_str} (Frequency Domain)")
     plt.legend()
+    plt.grid(True)
     plt.tight_layout()
     plt.show()
 

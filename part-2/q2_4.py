@@ -1,102 +1,67 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from q2_1 import phi_NL_values, effective_length, get_transmission_distances
+from q2_1 import P0, C, alpha, transmission_distances
 from q2_2 import (
-    calculate_sampling_and_frequency_params,
+    sampling_and_frequency_params,
     generate_time_and_frequency_vectors,
 )
-
-# Constants
-TW = 2500e-12  # Total time window in seconds
-N = 2**14  # Number of samples
-TFWHM = 10e-12  # Full Width Half Maximum (FWHM) in seconds
-P0 = 1.0  # Peak power in Watts
-C = 0  # Chirp parameter
+from q2_3 import T0, electrical_field_envelope, power_of_pulse, normalize
 
 # Get transmission lengths from Q2-1
-z_values = get_transmission_distances()["Transmission Distance z (km)"].tolist()
+transmission_values = transmission_distances()
+z_values = transmission_values["Transmission Distance z (km)"]
+L_eff_values = transmission_values["Effective Length Leff (km)"]
 
 # Get parameters from Q2-2
-T_sa, F_sa, Delta_F, F_min = calculate_sampling_and_frequency_params()
+T_sa, F_sa, Delta_F, F_min = sampling_and_frequency_params()
 
-# Get Time and Frequency Vector from Q2-2
-time_vector, frequency_vector = generate_time_and_frequency_vectors(
-    T_sa, Delta_F, F_min
-)
+# Generate Time and Frequency Vectors
+t, freq = generate_time_and_frequency_vectors(T_sa, Delta_F, F_min)
+f = np.fft.fftshift(freq)
 
-# Pulse properties
-T0 = TFWHM / (2 * np.sqrt(2 * np.log(2)))  # T0 is the width parameter
-A0 = np.sqrt(P0)  # Peak amplitude
+# Define Gaussian pulse in time and frequency domains
+beta_2 = -21.68 * 1e-24  # [s**2 km**-1]
+w = 2 * np.pi * f  # Angular frequency
 
-# Define initial time-domain Gaussian pulse
-A_time_initial = A0 * np.exp(
-    -(1 + 1j * C) * (time_vector**2) / (2 * T0**2)
-)  # Complex field envelope
 
-# Convert initial time-domain pulse to frequency domain
-A_freq_initial = np.fft.fftshift(
-    np.fft.fft(A_time_initial)
-)  # Frequency-domain representation
-
-# Fiber parameters from previous sections
-alpha = 0.0461  # Attenuation coefficient in km^-1
-gamma = 1.25  # Non-linear coefficient in W^-1 km^-1
+def propogate_pulse(vector, z, L_eff):
+    power = power_of_pulse(vector)
+    return np.sqrt(power) * np.exp(-alpha * z * 0.5) * np.exp(1j * power * L_eff)
 
 
 def main():
-    # (b) Calculate the spectrum at the output of the fiber for each distance
-    output_spectra = {}
-    for z in z_values:
-        Leff = effective_length(z, alpha)  # Calculate the effective length
-        # Modify the spectrum using the phase shift caused by nonlinearity and dispersion
-        A_freq_output = A_freq_initial * np.exp(1j * gamma * P0 * Leff * z)
-        output_spectra[z] = np.abs(A_freq_output) ** 2  # Store the power spectrum
+    A_0_t = electrical_field_envelope(P0, T0, C, t)
+    A_0_w = np.fft.fft(A_0_t)
 
-    # Normalize the input and output spectra to the peak of the input spectrum
-    P_freq_initial = np.abs(A_freq_initial) ** 2
-    P_freq_initial_normalized = P_freq_initial / np.max(P_freq_initial)
+    A_z_t_values = []
+    A_z_w_values = []
+    for z, L_eff in zip(z_values, L_eff_values):
+        A_z_t = propogate_pulse(A_0_t, z, L_eff)
+        A_z_w = np.fft.fft(A_z_t)
+        A_z_t_values.append(A_z_t)
+        A_z_w_values.append(A_z_w)
 
-    # Normalize each output spectrum to the input peak power
-    for z in output_spectra:
-        output_spectra[z] = output_spectra[z] / np.max(P_freq_initial)
+    # Normalizing the Power Spectra
+    P_0_w = power_of_pulse(A_0_w)
+    n_w = np.max(P_0_w)
+    P_0_w = normalize(P_0_w)
 
-    # (c) Plot the input and output spectra with distinctive styles
-    plt.figure(figsize=(14, 7))
-    # Plot Input Spectrum with a thick dashed line
-    plt.plot(
-        frequency_vector * 1e-9,
-        P_freq_initial_normalized,
-        label="Input Spectrum",
-        linestyle="--",
-        color="black",
-        linewidth=2,
-    )
+    # Input Power Spectra
+    plt.plot(f * 1e-9, P_0_w, label=f"Input C={C}")
 
-    # Plot each output spectrum with a distinct style and marker
-    styles = ["-", "--", "-.", ":"]
-    # markers = ["o", "s", "^", "d"]
-    colors = ["red", "blue", "green", "orange"]
+    # Output Power Spectra
+    for A_z_w, z in zip(A_z_w_values, z_values):
+        P_z_w = power_of_pulse(A_z_w)
+        P_z_w = P_z_w / np.abs(n_w)  # normalizing with the input max
+        plt.plot(f * 1e-9, P_z_w, "-", label=f"Output C={C}, z={round(z,2)} km")
 
-    for idx, z in enumerate(z_values):
-        plt.plot(
-            frequency_vector * 1e-9,
-            output_spectra[z],
-            label=f"Output Spectrum (z = {z:.2f} km)",
-            linestyle=styles[idx],
-            color=colors[idx],
-            # marker=markers[idx],
-            # markevery=1000,  # Place markers at every 1000 data points to highlight
-            linewidth=1.5,
-            alpha=0.8,
-        )
-
-    # Final plot settings
-    plt.xlabel("Frequency (GHz)")
+    plt.xlabel("Frequency [GHz]")
     plt.ylabel("Normalized Power")
-    plt.title("Input and Output Spectra at Various Transmission Distances")
+    plt.xlim(-300, 300)
+    plt.ylim(0, 1)
     plt.legend()
-    plt.grid()
-    plt.xlim(-100, 100)
+    plt.grid(True)
+    plt.tight_layout()
     plt.show()
 
 

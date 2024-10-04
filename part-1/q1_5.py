@@ -3,12 +3,19 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from tabulate import tabulate
-from q1_1 import N, TW, calculate_sampling_and_frequency_params
-from q1_2 import C_VALUES, A0, T0, t, calculate_electrical_field_envelope, calculate_power_of_pulse
+from q1_1 import N, TW, sampling_and_frequency_params
+from q1_2 import (
+    C_VALUES,
+    A0,
+    T0,
+    t,
+    electrical_field_envelope,
+    power_of_pulse,
+)
 from q1_3 import measure_FWHM
 
 # Get T_sa from Q1-1
-T_sa, _, _, _ = calculate_sampling_and_frequency_params(N, TW)
+T_sa, F_sa, Delta_F, F_min = sampling_and_frequency_params(N, TW)
 
 # Fiber parameters
 beta_2 = -21.68  # Dispersion parameter (ps^2/km)
@@ -17,64 +24,70 @@ f = np.fft.fftfreq(N, T_sa * 1e12)  # Frequency vector in Hz
 omega_vector = 2 * np.pi * f  # Angular frequency vector
 
 
-def calculate_spectrum(A_f: np.ndarray, f: np.ndarray, z: float) -> np.ndarray:
+def spectrum(A_f: np.ndarray, f: np.ndarray, z: float) -> np.ndarray:
     omega_vector = 2 * np.pi * f
     first_term = 1j * (beta_2 / 2) * z * omega_vector**2
-    second_term = 0 # assuming beta_3 = 0
+    second_term = 0  # assuming beta_3 = 0
     return A_f * np.exp(first_term + second_term)
 
-def calculate_pulse_evolution(z_values: list[float]):
+
+def propagate_pulse(A_0, C_values: list[int], z_values: list[float]):
     # Compute the evolution for each chirp value and distance
     results = {}  # Store results for analysis
-    
+
     for C in C_VALUES:
         results[C] = {}
-        A_t = calculate_electrical_field_envelope(A0, T0, C, t)
-        A_f = np.fft.fft(A_t)
-        
+        A_t = electrical_field_envelope(A_0, T0, C, t)
+        A_f = np.fft.fft(A_t)  # convert to frequency domain
+
         # Calculate for each distance
         for z in z_values:
-            A_zf = calculate_spectrum(A_f, f, z)
+            A_zf = spectrum(A_f, f, z)
             A_zt = np.fft.ifft(A_zf)  # Convert back to time domain
-            P_zt = calculate_power_of_pulse(A_zt)  # b) Calculate power
+            P_zt = power_of_pulse(A_zt)  # b) Calculate power
             results[C][z] = (t, A_zt, P_zt)  # Store results
 
     return results
 
 
 def main():
-    pulse_evolution = calculate_pulse_evolution(Z_VALUES)
+    propagated_pulses = propagate_pulse(A0, C_VALUES, Z_VALUES)
 
-    # Calculate FWHM for each C and Z-value combination
+    # Measure FWHM for each C and Z-value combination
     table_data = []
     for C in C_VALUES:
         row = {"C": C}
         for i, z in enumerate(Z_VALUES):
-            time_vector, A_zt, P_zt = pulse_evolution[C][z]
-            row[f"T_FWHM{f'(z_{i})'*bool(z)} (ps)\nz{f'_{i}'*bool(z)} = {z} km"] = measure_FWHM(time_vector, P_zt)
+            time_vector, A_zt, P_zt = propagated_pulses[C][z]
+            header = f"T_FWHM{f'(z_{i})'*bool(z)} (ps)\nz{f'_{i}'*bool(z)} = {z} km"
+            row[header] = measure_FWHM(time_vector, P_zt)
         table_data.append(row)
-    
+
     # Print the results in a tabular form
-    print(tabulate(pd.DataFrame(table_data), headers="keys", tablefmt="psql", showindex=False))
+    print(
+        tabulate(
+            pd.DataFrame(table_data), headers="keys", tablefmt="psql", showindex=False
+        )
+    )
 
     # Plotting the results, one row of subplots for each z value
     fig, axs = plt.subplots(1, len(Z_VALUES), figsize=(14, 3))
     for j, z in enumerate(Z_VALUES):
-        axs[j].set_xlim(-200, 200)
+        axs[j].set_xlim(-100, 100)
 
         # Plot all C values for this z value
         for C in C_VALUES:
-            time_vector, A_zt, P_zt = pulse_evolution[C][z]
+            time_vector, A_zt, P_zt = propagated_pulses[C][z]
             axs[j].plot(time_vector, P_zt, label=f"C={C}")
 
         axs[j].set_xlabel("Time (ps)")
-        axs[j].set_ylabel("Power")
+        axs[j].set_ylabel("Normalized Power Spectrum")
         axs[j].legend()
-        axs[j].set_title(f"Power vs Time\nz={z} km")
+        axs[j].grid(True)
+        axs[j].set_title(f"z={z} km")
 
     plt.tight_layout()
     plt.show()
-
 
 
 if __name__ == "__main__":
