@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 
 from q1_1 import TW, N, T_FWHM, C_VALUES, A0
 
+# Set figure DPI to 300 (increasing plot resolution)
+plt.rcParams["savefig.dpi"] = 300
+
 # Calculating T0
 T0 = T_FWHM / (2 * np.sqrt(np.log(2)))  # T0 in ps
 

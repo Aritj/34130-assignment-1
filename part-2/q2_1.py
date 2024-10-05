@@ -3,7 +3,7 @@ import pandas as pd
 from tabulate import tabulate
 
 # Given constants
-T_FWHM = 10 * 1e-12
+T_FWHM = 10 * 1e-12  # s
 P0 = 1  # Peak power in W
 C = 0  # Chirp parameter
 gamma = 1.25  # W^-1 km^-1

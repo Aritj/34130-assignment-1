@@ -5,6 +5,9 @@ from q1_2 import A0, T0, C_VALUES
 from q1_3 import measure_FWHM
 from q1_5 import beta_2, Z_VALUES, propagate_pulse
 
+# Set figure DPI to 300 (increasing plot resolution)
+plt.rcParams["savefig.dpi"] = 300
+
 # Define constants and parameters
 z_range = np.arange(0, 5.001, 0.001)  # 0-5 km range, 0.001 km interval
 
@@ -13,7 +16,7 @@ def analytical_ratio(beta_2: float, C: int, z: float) -> float:
     return np.sqrt((1 + beta_2 * C * z / T0**2) ** 2 + (beta_2 * z / T0**2) ** 2)
 
 
-def main():
+def main() -> None:
     # Calculate the analytical ratio for each C and z
     analytical_ratios = {C: analytical_ratio(beta_2, C, z_range) for C in C_VALUES}
 

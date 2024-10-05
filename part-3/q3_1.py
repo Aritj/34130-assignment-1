@@ -1,6 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+# Set figure DPI to 300 (increasing plot resolution)
+plt.rcParams["savefig.dpi"] = 300
+
 # Define constants
 TW = 2500e-12  # Total time window (2500 ps)
 N = 2**14  # Number of samples

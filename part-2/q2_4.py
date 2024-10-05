@@ -7,6 +7,8 @@ from q2_2 import (
 )
 from q2_3 import T0, electrical_field_envelope, power_of_pulse, normalize
 
+plt.rcParams["savefig.dpi"] = 300
+
 # Get transmission lengths from Q2-1
 transmission_values = transmission_distances()
 z_values = transmission_values["Transmission Distance z (km)"]

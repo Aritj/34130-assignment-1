@@ -6,6 +6,9 @@ from q2_2 import (
     generate_time_and_frequency_vectors,
 )
 
+# Set figure DPI to 300 (increasing plot resolution)
+plt.rcParams["savefig.dpi"] = 300
+
 # Constants
 T0 = T_FWHM / (2 * np.sqrt(np.log(2)))
 A0 = np.sqrt(P0)  # Peak amplitude

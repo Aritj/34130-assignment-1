@@ -1,6 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+# Set figure DPI to 300 (increasing plot resolution)
+plt.rcParams["savefig.dpi"] = 300
+
 # Total time window (2500 ps)
 TW = 2500e-12
 # Number of samples
@@ -18,16 +21,10 @@ T_FWHM = 10e-12  # 10 ps
 T0 = T_FWHM / (2 * np.sqrt(np.log(2)))
 
 A0 = 1  # W^(1/2)
-alpha = 0  # km^-1
 gamma = 1.25  # W^-1 km^-1
 beta2 = -21.68e-24  # s^2/km
 beta3 = 0  # s^3/km
 L = 20  # km
-
-# Calculate pulse width for the soliton
-P0 = abs(A0) ** 2
-T0_sech_pulse = np.sqrt(abs(beta2) / (gamma * P0))  # hyperbolic secant pulse
-print(f"T0 for the sech pulse is {T0_sech_pulse:.2e}")
 
 
 # Create sech pulse
@@ -96,14 +93,25 @@ def plot_results(t, f, A_in, A_out, title_str):
     plt.show()
 
 
-# Create the initial sech pulse
-A_in = create_sech_pulse(t, A0, T0_sech_pulse)
+def main() -> None:
+    # Calculate pulse width for the soliton
+    P0 = abs(A0) ** 2
+    T0_sech_pulse = np.sqrt(abs(beta2) / (gamma * P0))  # hyperbolic secant pulse
+    print(f"T0 for the sech pulse is {T0_sech_pulse:.2e}")
 
-# Propagation without loss
-A_out = split_step(A_in, L, w, beta2, beta3, alpha, gamma, N_seg)
-plot_results(t, f, A_in, A_out, "Sech Pulse Propagation")
+    # Create the initial sech pulse
+    A_in = create_sech_pulse(t, A0, T0_sech_pulse)
 
-# Introduce loss
-alpha = 0.0461  # km^-1
-A_out_loss = split_step(A_in, L, w, beta2, beta3, alpha, gamma, N_seg)
-plot_results(t, f, A_in, A_out_loss, "Sech Pulse Propagation with alpha = 0.0461")
+    # Propagation without loss
+    alpha = 0  # km^-1
+    A_out = split_step(A_in, L, w, beta2, beta3, alpha, gamma, N_seg)
+    plot_results(t, f, A_in, A_out, f"Sech Pulse Propagation (alpha={alpha})")
+
+    # Introduce loss
+    alpha = 0.0461  # km^-1
+    A_out_loss = split_step(A_in, L, w, beta2, beta3, alpha, gamma, N_seg)
+    plot_results(t, f, A_in, A_out_loss, f"Sech Pulse Propagation (alpha={alpha})")
+
+
+if __name__ == "__main__":
+    main()

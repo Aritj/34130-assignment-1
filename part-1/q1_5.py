@@ -7,6 +7,9 @@ from q1_1 import N, C_VALUES, A0, sampling_and_frequency_params
 from q1_2 import T0, t, electrical_field_envelope, power_of_pulse
 from q1_3 import measure_FWHM
 
+# Set figure DPI to 300 (increasing plot resolution)
+plt.rcParams["savefig.dpi"] = 300
+
 # Get T_sa from Q1-1
 T_sa, F_sa, Delta_F, F_min = sampling_and_frequency_params()
 
