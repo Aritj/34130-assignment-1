@@ -61,7 +61,7 @@ def plot_results(t, f, A_in, A_out, title_str):
         t * 1e12, np.abs(A_in) ** 2 / np.max(np.abs(A_in) ** 2), "b-", label="Input"
     )
     plt.plot(
-        t * 1e12, np.abs(A_out) ** 2 / np.max(np.abs(A_in) ** 2), "r-", label="Output"
+        t * 1e12, np.abs(A_out) ** 2 / np.max(np.abs(A_in) ** 2), "r:", label="Output"
     )
     plt.xlabel("Time (ps)")
     plt.xlim(-40, 40)
@@ -83,7 +83,7 @@ def plot_results(t, f, A_in, A_out, title_str):
     plt.plot(
         f * 1e-9,
         np.abs(A_out_w) ** 2 / np.max(np.abs(A_in_w) ** 2),
-        "r-",
+        "r:",
         label="Output",
     )
     plt.xlabel("Frequency (GHz)")

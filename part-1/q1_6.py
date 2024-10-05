@@ -1,18 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from q1_1 import N, TW, sampling_and_frequency_params
-from q1_2 import A0, C_VALUES
+from q1_2 import A0, T0, C_VALUES
 from q1_3 import measure_FWHM
-from q1_5 import Z_VALUES, propagate_pulse
+from q1_5 import beta_2, Z_VALUES, propagate_pulse
 
 # Define constants and parameters
-beta_2 = -21.68  # Group Velocity Dispersion (ps^2/km)
-T0 = 10 / (2 * np.sqrt(np.log(2)))  # Convert FWHM to T0 for Gaussian pulse
-z_range = np.arange(0, 5.001, 0.001)  # 0-5 km range
-
-# Define the parameters for pulse propagation
-T_sa, _, _, _ = sampling_and_frequency_params(N, TW)
+z_range = np.arange(0, 5.001, 0.001)  # 0-5 km range, 0.001 km interval
 
 
 def analytical_ratio(beta_2: float, C: int, z: float) -> float:
@@ -25,18 +19,17 @@ def main():
 
     # Propogate the pulse for each C and z and measure the FWHM
     propagated_pulses = propagate_pulse(A0, C_VALUES, Z_VALUES)
-    measured_FWHM_values = {C: [] for C in C_VALUES}
+    m_FWHM_values = {C: [] for C in C_VALUES}
 
     for C in C_VALUES:
         for z in Z_VALUES:
             t, A_zt, P_zt = propagated_pulses[C][z]
             measured_FWHM = measure_FWHM(t, P_zt)
-            measured_FWHM_values[C].append(measured_FWHM)
+            m_FWHM_values[C].append(measured_FWHM)
 
     # Calculate numerical ratios: TFWHM(z) / TFWHM(0)
     numerical_ratios = {
-        C: np.array(measured_FWHM_values[C]) / measured_FWHM_values[C][0]
-        for C in C_VALUES
+        C: np.array(m_FWHM_values[C]) / m_FWHM_values[C][0] for C in C_VALUES
     }
 
     plt.figure(figsize=(10, 6))
@@ -53,9 +46,8 @@ def main():
     # Plot settings
     plt.xlabel("Distance z (km)")
     plt.ylabel("Ratio $T_{FWHM1}(z)/T_{FWHM}$")
-    # plt.title("Ratio of Temporal Width vs Distance for Different Chirp Values")
     plt.legend()
-    plt.grid(True)
+    plt.grid()
     plt.tight_layout()
     plt.show()
 
