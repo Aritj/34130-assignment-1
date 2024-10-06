@@ -36,7 +36,7 @@ def measure_FWHM(t: np.ndarray, P: np.ndarray) -> np.float64:
 
 
 def normalize(A: np.ndarray, B: np.ndarray = None) -> np.ndarray:
-    # Normalize with B (if provided) else normalize with self
+    # Normalize A w.r.t. B (if provided) else normalize A w.r.t. A
     return A / np.max(B) if B is not None and B.size != 0 else A / np.max(A)
 
 
