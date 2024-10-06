@@ -17,22 +17,15 @@ phi_NL_values = [
 ]  # Given nonlinear phase shifts
 
 
-# Function to calculate effective length (L_eff)
-def effective_length(z, alpha):
-    return (1 - np.exp(-alpha * z)) / alpha
+def transmission_distance(
+    phi_NL: float, gamma: float, P0: int, alpha: float
+) -> tuple[float, float]:
+    L_eff = phi_NL / (gamma * P0)
+    z = -np.log(1 - alpha * L_eff) / alpha
+    return z, L_eff
 
 
-# a) Function to calculate transmission distance for given phi_NL
-def transmission_distance(phi_NL, gamma, P0, alpha):
-    # Using the relation phi_NL = gamma * P0 * Leff
-    # Leff = phi_NL / (gamma * P0)
-    # Solve for z: Leff = (1 - e^(-alpha * z)) / alpha
-    L_eff_required = phi_NL / (gamma * P0)
-    z = -np.log(1 - alpha * L_eff_required) / alpha
-    return z, L_eff_required
-
-
-def transmission_distances():
+def transmission_distances() -> pd.DataFrame:
     results = []
 
     for phi in phi_NL_values:
@@ -48,7 +41,7 @@ def transmission_distances():
     return pd.DataFrame(results)
 
 
-def main():
+def main() -> None:
     # Calculate transmission distances and effective lengths
     print("a, b, c)")
     print(tabulate(transmission_distances(), headers="keys", tablefmt="psql"))

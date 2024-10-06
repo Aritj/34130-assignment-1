@@ -5,8 +5,7 @@ TW: float = 2500  # Time Window in picoseconds
 N: int = 2**14  # Number of samples
 
 
-# Function to calculate sampling and frequency parameters
-def sampling_and_frequency_params():
+def sampling_and_frequency_params() -> tuple[float, float, float, float]:
     T_sa: float = TW * 1e-12 / N  # Sampling period in seconds
     F_sa: float = 1 / T_sa  # Sampling frequency in Hz
     Delta_F: float = F_sa / N  # Frequency bin in Hz
@@ -15,8 +14,9 @@ def sampling_and_frequency_params():
     return T_sa, F_sa, Delta_F, F_min
 
 
-# Function to generate time and frequency vectors
-def generate_time_and_frequency_vectors(T_sa, Delta_F, F_min):
+def generate_time_and_frequency_vectors(
+    T_sa: float, Delta_F: float, F_min: float
+) -> tuple[np.ndarray, np.ndarray]:
     # (e) Make a time vector based on the above time choices
     time_vector = np.linspace(-TW / 2 * 1e-12, TW / 2 * 1e-12, N)
 
@@ -26,7 +26,6 @@ def generate_time_and_frequency_vectors(T_sa, Delta_F, F_min):
     return time_vector, frequency_vector
 
 
-# Main function
 def main() -> None:
     # Calculate sampling and frequency parameters
     T_sa, F_sa, Delta_F, F_min = sampling_and_frequency_params()
@@ -44,6 +43,5 @@ def main() -> None:
     print(f"f) Frequency Vector: {f}")
 
 
-# Run the main function
 if __name__ == "__main__":
     main()

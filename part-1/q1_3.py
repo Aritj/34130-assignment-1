@@ -17,8 +17,9 @@ f = np.fft.fftfreq(N, T_sa)
 f = np.fft.fftshift(f)
 
 
-def normalize(v: np.ndarray) -> np.ndarray:
-    return v / np.max(v)
+def normalize(A: np.ndarray, B: np.ndarray = None) -> np.ndarray:
+    # Normalize A w.r.t. B (if provided) else normalize A w.r.t. A
+    return A / np.max(B) if B is not None and B.size != 0 else A / np.max(A)
 
 
 def normalized_power_spectrum(A_t: np.ndarray) -> np.ndarray:

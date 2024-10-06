@@ -1,10 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from q2_1 import T_FWHM, C, P0
-from q2_2 import (
-    sampling_and_frequency_params,
-    generate_time_and_frequency_vectors,
-)
+from q2_2 import sampling_and_frequency_params, generate_time_and_frequency_vectors
 
 # Set figure DPI to 300 (increasing plot resolution)
 plt.rcParams["savefig.dpi"] = 300
@@ -32,17 +29,18 @@ def power_of_pulse(A_t: np.ndarray) -> np.ndarray:
     return A_t * np.conjugate(A_t)
 
 
-def measure_FWHM(t, P):
+def measure_FWHM(t: np.ndarray, P: np.ndarray) -> np.float64:
     half_max = np.max(P) / 2
     indices = np.where(P >= half_max)[0]
     return t[indices[-1]] - t[indices[0]]  # Return the difference (FWHM)
 
 
-def normalize(vector):
-    return np.abs(vector / np.max(vector))
+def normalize(A: np.ndarray, B: np.ndarray = None) -> np.ndarray:
+    # Normalize with B (if provided) else normalize with self
+    return A / np.max(B) if B is not None and B.size != 0 else A / np.max(A)
 
 
-def main():
+def main() -> None:
     # a, b)Calculate the power of the pulse in time (normalized to temporal peak power)
     A_t = electrical_field_envelope(A0, T0, C, t)
     P_t = power_of_pulse(A_t)
@@ -62,27 +60,29 @@ def main():
         1, 2, figsize=(16, 5)
     )  # Create side-by-side subplots
 
-    # a) Plot the power of the pulse in time
+    # Plot the power of the pulse in time domain
     ax1.plot(t * 1e12, P_t_normalized, label=f"Power of Pulse (C = {C})")
     ax1.set_xlabel("Time (ps)")
     ax1.set_ylabel("Normalized Power")
     ax1.set_title("Normalized Power of Gaussian Pulse in Time Domain")
-    ax1.grid(True)
+    ax1.grid()
     ax1.set_xlim(-20, 20)
+    ax1.set_ylim(0, 1)
 
-    # b) Plot the power of the pulse in frequency
+    # Plot the power of the pulse in frequency domain
     ax2.plot(f * 1e-9, P_f_normalized, label=f"Power of Pulse (C = {C})")
     ax2.set_xlabel("Frequency (GHz)")
     ax2.set_ylabel("Normalized Power")
     ax2.set_title("Normalized Power of Gaussian Pulse in Frequency Domain")
-    ax2.grid(True)
+    ax2.grid()
     ax2.set_xlim(-100, 100)
+    ax2.set_ylim(0, 1)
 
     # Show both plots side-by-side
     plt.tight_layout()
     plt.show()
 
-    # c) State Full Width Half Maximum for the pulse in both time and frequency
+    # State Full Width Half Maximum for the pulse in both time and frequency
     # Calculate the FWHM in time and frequency
     FWHM_time = measure_FWHM(t, P_t_normalized) * 1e12  # in ps
     FWHM_freq = measure_FWHM(f, P_f_normalized) * 1e-9  # in GHz

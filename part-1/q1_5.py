@@ -23,7 +23,7 @@ omega_vector = 2 * np.pi * f  # Angular frequency vector
 def spectrum(A_f: np.ndarray, f: np.ndarray, z: float) -> np.ndarray:
     omega_vector = 2 * np.pi * f
     first_term = 1j * (beta_2 / 2) * z * omega_vector**2
-    second_term = 0  # assuming beta_3 = 0
+    second_term = 0  # assuming β_3 = 0
     return A_f * np.exp(first_term + second_term)
 
 

@@ -10,7 +10,7 @@ def calculate_F_FWHM(T0: float, C: int) -> np.float64:
     return (np.sqrt(np.log(2)) / (np.pi * T0 * 1e-12)) * np.sqrt(1 + C**2)
 
 
-def main():
+def main() -> None:
     # Calculate and verify the spectral widths determined in the previous question
     A_t_list = [electrical_field_envelope(A0, T0, C, t) for C in C_VALUES]
     P_f_list = [normalized_power_spectrum(A_t) for A_t in A_t_list]
